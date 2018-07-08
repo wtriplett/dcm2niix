@@ -1,207 +1,108 @@
+[![Build Status](https://travis-ci.org/rordenlab/dcm2niix.svg?branch=master)](https://travis-ci.org/rordenlab/dcm2niix)
+[![Build status](https://ci.appveyor.com/api/projects/status/7o0xp2fgbhadkgn1?svg=true)](https://ci.appveyor.com/project/neurolabusc/dcm2niix)
+
 ## About
 
-dcm2niix is a designed to convert neuroimaging data from the DICOM format to the NIfTI format. For details and compiled versions visit the [NITRC wiki](http://www.nitrc.org/plugins/mwiki/index.php/dcm2nii:MainPage)
+dcm2niix is a designed to convert neuroimaging data from the DICOM format to the NIfTI format. This web page hosts the developmental source code - a compiled version for Linux, MacOS, and Windows of the most recent stable release is included with [MRIcroGL](https://www.nitrc.org/projects/mricrogl/). A full manual for this software is available in the form of a [NITRC wiki](http://www.nitrc.org/plugins/mwiki/index.php/dcm2nii:MainPage).
+
+## License
+
+This software is open source. The bulk of the code is covered by the BSD license. Some units are either public domain (nifti*.*, miniz.c) or use the MIT license (ujpeg.cpp). See the license.txt file for more details.
+
+## Dependencies
+
+This software should run on macOS, Linux and Windows typically without requiring any other software. However, if you use dcm2niix to create gz-compressed images it will be faster if you have [pigz](https://github.com/madler/pigz) installed. You can get a version of both dcm2niix and pigz compiled for your operating system by downloading [MRIcroGL](https://www.nitrc.org/projects/mricrogl/).
+
+
+## Image Conversion and Compression
+
+DICOM provides many ways to store/compress image data, known as [transfer syntaxes](https://www.nitrc.org/plugins/mwiki/index.php/dcm2nii:MainPage#DICOM_Transfer_Syntaxes_and_Compressed_Images). The [COMPILE.md file describes details](./COMPILE.md) on how to enable different options to provide support for more formats.
+
+ - The base code includes support for raw, run-length encoded, and classic JPEG lossless decoding.
+ - Lossy JPEG is handled by the included [NanoJPEG](https://keyj.emphy.de/nanojpeg/). This support is modular: you can compile for [libjpeg-turbo](https://github.com/chris-allan/libjpeg-turbo) or disable it altogether.
+ - JPEG-LS lossless support is optional, and can be provided by using [CharLS](https://github.com/team-charls/charls).
+  - JPEG2000 lossy and lossless support is optional, and can be provided using [OpenJPEG](https://github.com/uclouvain/openjpeg) or [Jasper](https://www.ece.uvic.ca/~frodo/jasper/).
+ - GZ compression (e.g. creating .nii.gz images) is optional, and can be provided using either the included [miniz](https://github.com/richgel999/miniz) or the popular zlib. Of particular note, the [Cloudflare zlib](https://github.com/cloudflare/zlib) exploits modern hardware (available since 2008) for very rapid compression. Alternatively, you can compile dcm2niix without a gzip compressor. Regardless of how you compile dcm2niix, it can use the external program [pigz](https://github.com/madler/pigz) for parallel compression.
 
 ## Versions
 
-22-Mar-2016
- - Experimental support for [http://dicom.nema.org/dicom/2013/output/chtml/part10/chapter_7.html DICOM dataset's without DICOM file meta information].
-
-12-Dec-2015
- - Support PAR/REC FP values when possible(see PMC3998685)
-
-11-Nov-2015
- - Minor refinements
-
-12-June-2015
- - Uses less memory (helpful for large datasets)
-
-2-Feb-2015
- - Support for Visual Studio
- - Remove dependency on zlib (now uses miniz)
-
-1-Jan-2015
- - Images separated based on TE (fieldmaps)
- - Support for JPEG2000 using OpenJPEG or Jasper libraries
- - Support for JPEG using NanoJPEG library
- - Support for lossless JPEG using custom library
-
-24-Nov-2014
- - Support for CT scans with gantry tilt and varying distance between slices
-
-11-Oct-2014
- - Initial public release
+[See the VERSIONS.md file for details on releases](./VERSIONS.md).
 
 ## Running
 
-See help: `dcm2niix -h`
-e.g. `dcm2niix /path/to/dicom/folder`
+Command line usage is described in the [NITRC wiki](https://www.nitrc.org/plugins/mwiki/index.php/dcm2nii:MainPage#General_Usage). The minimal command line call would be `dcm2niix /path/to/dicom/folder`. However, you may want to invoke additional options, for example the call `dcm2niix -z y -f %p_%t_%s -o /path/ouput /path/to/dicom/folder` will save data as gzip compressed, with the filename based on the protocol name (%p) acquisition time (%t) and DICOM series number (%s), with all files saved to the folder "output". For more help see help: `dcm2niix -h`.
 
-**Optional batch processing version:**
-
-Perform a batch conversion of multiple dicoms using the configurations specified in a yaml file.
-```bash
-dcm2niibatch run_configuration.yaml
-```
-
-The configuration file should be in yaml format as shown in example `run_configuration.yaml`
-
-```yaml
-Options:
-  isGz:             false
-  isFlipY:          false
-  isVerbose:        false
-  isCreateBIDS:     false
-  isOnlySingleFile: false
-Files:
-    -
-      in_dir:           /path/to/first/folder
-      out_dir:          /path/to/output/folder
-      filename:         dcemri
-    -
-      in_dir:           /path/to/second/folder
-      out_dir:          /path/to/output/folder
-      filename:         fa3
-```
-
-You can add as many files as you want to convert as long as this structure stays consistent. Note that a dash must separate each file.
+[See the BATCH.md file for instructions on using the batch processing version](./BATCH.md).
 
 ## Build
 
-### Build command line version with cmake (Linux, Windows, OSx)
+### Build command line version with cmake (Linux, MacOS, Windows)
+
+`cmake` and `pkg-config` (optional) can be installed as follows:
+
+Ubuntu: `sudo apt-get install cmake pkg-config`
+
+MacOS: `brew install cmake pkg-config`
+
+**Basic build:**
+```bash
+mkdir build && cd build
+cmake ..
+make
+```
+`dcm2niix` will be created in the `bin` subfolder. To install on the system run `make install` instead of `make` - this will copy the executable to your path so you do not have to provide the full path to the executable.
+
+In rare case if cmake fails with the message like `"Generator: execution of make failed"`, it could be fixed by ``sudo ln -s `which make` /usr/bin/gmake``.
+
+**Advanced build:**
+
+As noted in the `Image Conversion and Compression Support` section, the software provides many optional modules with enhanced features. A common choice might be to include support for JPEG2000, [JPEG-LS](https://github.com/team-charls/charls) (this option requires a  c++14 compiler), as well as using the high performance Cloudflare zlib library (this option requires a CPU built after 2008). To build with these options simply request them when configuring cmake:
 
 ```bash
-mkdir build
-cd build
-cmake ..
+mkdir build && cd build
+cmake -DZLIB_IMPLEMENTATION=Cloudflare -DUSE_JPEGLS=ON -DUSE_OPENJPEG=ON ..
+make
 ```
-`dcm2niix` will be created in the `bin` folder
 
 **optional batch processing version:**
 
-The batch processing binary `dcm2niibatch` is optional. To build `dcm2niibatch` as well change the cmake command to `cmake -DBATCH_VERSION=ON ..`
-
-This requires the following libraries:
-- pkg-config
-- yaml-cpp
-- a compiler that supports c++11
-
-e.g. the dependencies can be installed on Ubuntu 14.04 by running
-```
-sudo apt-get install pkg-config libyaml-cpp-dev libyaml-cpp0.5 cmake
-```
+The batch processing binary `dcm2niibatch` is optional. To build `dcm2niibatch` as well change the cmake command to `cmake -DBATCH_VERSION=ON ..`. This requires a compiler that supports c++11.
 
 ### Building the command line version without cmake
 
- This requires a C compiler. With a terminal, change directory to the 'console' folder and run the following:
+If you have any problems with the cmake build script described above or want to customize the software see the [COMPILE.md file for details on manual compilation](./COMPILE.md).
 
-##### DEFAULT BUILD
+## Alternatives
 
-```
-g++ -O3 -DmyDisableOpenJPEG -I. main_console.cpp nii_dicom.cpp nifti1_io_core.cpp nii_ortho.cpp nii_dicom_batch.cpp jpg_0XC3.cpp ujpeg.cpp -dead_strip -o dcm2niix
-```
+ - [Valerio Luccio's dinifti](http://cbi.nyu.edu/software/dinifti.php) is focused on conversion of Siemens data.
+ - [dcm2nii](http://www.mccauslandcenter.sc.edu/mricro/mricron/dcm2nii.htm) is the predecessor of dcm2niix. It is deprecated for modern images, but does handle image formats that predate DICOM (proprietary Elscint, GE and Siemens formats).
+ - [DWIConvert](https://github.com/BRAINSia/BRAINSTools/tree/master/DWIConvert) converts DICOM images to NRRD and NIfTI formats.
+ - [Xiangrui Li's dicm2nii](http://www.mathworks.com/matlabcentral/fileexchange/42997-dicom-to-nifti-converter) is written in Matlab. The Matlab language makes this very scriptable.
+ - [dicom2nifti](https://github.com/icometrix/dicom2nifti) uses the scriptable Python wrapper utilizes the [high performance  GDCMCONV](http://gdcm.sourceforge.net/wiki/index.php/Gdcmconv) executables.
+ - [MRtrix mrconvert](http://mrtrix.readthedocs.io/en/latest/reference/commands/mrconvert.html) is a useful general purpose image converter and handles DTI data well. It is an outstanding tool for modern Philips enhanced images.
+ - [Jolinda Smith's mcverter](http://lcni.uoregon.edu/%7Ejolinda/MRIConvert/) has great support for various vendors.
+ - [mri_convert](https://surfer.nmr.mgh.harvard.edu/pub/docs/html/mri_convert.help.xml.html) is part of the popular FreeSurfer package. In my limited experience this tool works well for GE and Siemens data, but fails with Philips 4D datasets.
+ - [SPM12](http://www.fil.ion.ucl.ac.uk/spm/software/spm12/) is one of the most popular tools in the field. It includes DICOM to NIfTI conversion. Being based on Matlab it is easy to script.
+ - [R2A_GUI](http://r2agui.sourceforge.net/) is a Matlab script that converts Philips PAR/REC images to NIfTI.
 
-##### ZLIB BUILD
- If we have zlib, we can use it (-lz) and disable [miniz](https://code.google.com/p/miniz/) (-myDisableMiniZ)
+## Links
 
-```
-g++ -O3 -DmyDisableOpenJPEG -I. main_console.cpp nii_dicom.cpp nifti1_io_core.cpp nii_ortho.cpp nii_dicom_batch.cpp jpg_0XC3.cpp ujpeg.cpp -dead_strip -o dcm2niix -lz -DmyDisableMiniZ
-```
-
-##### MINGW BUILD
-
-If you use the (obsolete) compiler MinGW on Windows you will want to include the rare libgcc libraries with your executable so others can use it. Here I also demonstrate the optional "-DmyDisableZLib" to remove zip support.
-
-```
-g++ -O3 -s -DmyDisableOpenJPEG -DmyDisableZLib -I. main_console.cpp nii_dicom.cpp nifti1_io_core.cpp nii_ortho.cpp nii_dicom_batch.cpp jpg_0XC3.cpp ujpeg.cpp -o dcm2niix  -static-libgcc
-```
-
-##### JPEG2000 BUILD
-
- If you want to build this with JPEG2000 decompression support using OpenJPEG. You will need to have the OpenJPEG 2.1 libraries installed (https://code.google.com/p/openjpeg/wiki/Installation). I suggest building static libraries...
- svn checkout http://openjpeg.googlecode.com/svn/trunk/ openjpeg-read-only
- cmake -DBUILD_SHARED_LIBS:bool=off .
- make
- sudo make install
-You should then be able to run then run:
-
-```
-g++ -O3 -dead_strip -I. main_console.cpp nii_dicom.cpp nifti1_io_core.cpp nii_ortho.cpp nii_dicom_batch.cpp  jpg_0XC3.cpp ujpeg.cpp -o dcm2niix -lopenjp2
-```
-
-But in my experience this works best if you explicitly tell the software how to find the libraries, so your compile will probably look like one of these two options:
-
-```
-g++ -O3 -dead_strip -I. main_console.cpp nii_dicom.cpp nifti1_io_core.cpp nii_ortho.cpp nii_dicom_batch.cpp jpg_0XC3.cpp ujpeg.cpp -o dcm2niix  -I/usr/local/include /usr/local/lib/libopenjp2.a
-```
-
-```
-g++ -O3 -dead_strip -I. main_console.cpp nii_dicom.cpp nifti1_io_core.cpp nii_ortho.cpp nii_dicom_batch.cpp jpg_0XC3.cpp ujpeg.cpp -o dcm2niix  -I/usr/local/lib /usr/local/lib/libopenjp2.a
-```
-
- If you want to build this with JPEG2000 decompression support using Jasper: You will need to have the Jasper (http://www.ece.uvic.ca/~frodo/jasper/) and libjpeg (http://www.ijg.org) libraries installed which for Linux users may be as easy as running 'sudo apt-get install libjasper-dev' (otherwise, see http://www.ece.uvic.ca/~frodo/jasper/#doc). You can then run:
-
-```
-g++ -O3 -DmyDisableOpenJPEG -DmyEnableJasper -I. main_console.cpp nii_dicom.cpp nifti1_io_core.cpp nii_ortho.cpp nii_dicom_batch.cpp jpg_0XC3.cpp ujpeg.cpp  -s -o dcm2niix -ljasper -ljpeg
-```
-
-##### VISUAL STUDIO BUILD
-
-You should be able to click on the Visual Studio icons to open and build this code. Here are links for for building with [Windows XP support](http://blogs.msdn.com/b/vcblog/archive/2012/10/08/windows-xp-targeting-with-c-in-visual-studio-2012.aspx) and [64-bit support](https://msdn.microsoft.com/en-us/library/9yb4317s.aspx).
-
-##### OSX BUILD WITH BOTH 32 AND 64-BIT SUPPORT
-
-Building command line version universal binary from OSX 64 bit system:
- This requires a C compiler. With a terminal, change directory to the 'conosle' folder and run the following:
-
-```
-g++ -O3 -DmyDisableOpenJPEG -I. main_console.cpp nii_dicom.cpp nifti1_io_core.cpp nii_ortho.cpp nii_dicom_batch.cpp jpg_0XC3.cpp ujpeg.cpp -dead_strip -arch i386 -o dcm2niix32
-```
-
-```
-g++ -O3 -DmyDisableOpenJPEG -I. main_console.cpp nii_dicom.cpp nifti1_io_core.cpp nii_ortho.cpp nii_dicom_batch.cpp jpg_0XC3.cpp ujpeg.cpp -dead_strip -o dcm2niix64
-```
-
-```
-lipo -create dcm2niix32 dcm2niix64 -o dcm2niix
-```
-
- To validate that the resulting executable supports both architectures type
-
-```
-file ./dcm2niix
-```
-
-##### OSX GRAPHICAL INTERFACE BUILD
-
-Building OSX graphical user interface using XCode:
- Copy contents of "console" folder to /xcode/dcm2/core
- Open and compile "dcm2.xcodeproj" with XCode 4.6 or later
-
-##### THE QT AND wxWIDGETS GUIs ARE NOT YET SUPPORT - FOLLOWING LINES FOR FUTURE VERSIONS
-
-Building QT graphical user interface:
-  Open "dcm2.pro" with QTCreator. This should work on OSX and Linux. On Windows the printf information is not redirected to the user interface
-  If compile gives you grief look at the .pro file which has notes for different operating systems.
-
-Building using wxWidgets
-wxWdigets makefiles are pretty complex and specific for your operating system. For simplicity, we will build the "clipboard" example that comes with wxwidgets and then substitute our own code. The process goes something like this.
- a.) Install wxwdigets
- b.) successfully "make" the samples/clipboard program
- c.) DELETE console/makefile. WE DO NOT WANT TO OVERWRITE the WX MAKEFILE
- d.) with the exception of "makefile", copy the contents of console to /samples/clipboard
- e.) overwrite the original /samples/clipboard.cpp with the dcm2niix file of the same name
- f.) Older XCodes have problems with .cpp files, whereas wxWidgets's makefiles do not compile with "-x cpp". So the core files are called '.c' but we will rename them to .cpp for wxWidgets:
- rename 's/\.c$/\.cpp/' *
- g.) edit the /samples/clipboard makefile: Add "nii_dicom.o nifti1_io_core.o nii_ortho.o nii_dicom_batch.o \" to CLIPBOARD_OBJECTS:
-CLIPBOARD_OBJECTS =  \
-	nii_dicom.o nifti1_io_core.o nii_ortho.o nii_dicom_batch.o \
-	$(__clipboard___win32rc) \
-	$(__clipboard_os2_lib_res) \
-	clipboard_clipboard.o
- h.) edit the /samples/clipboard makefile: With wxWidgets we will capture std::cout comments, not printf, so we need to add "-DDmyUseCOut" to CXXFLAGS:
-CXXFLAGS = -DmyUseCOut -DWX_PRECOMP ....
- i.) For a full refresh
-rm clipboard
-rm *.o
-make
+  - [bidsify](https://github.com/spinoza-rec/bidsify) is a Python project that uses dcm2niix to convert DICOM and Philips PAR/REC images to the BIDS standard.
+  - [bidskit](https://github.com/jmtyszka/bidskit) uses dcm2niix to create [BIDS](http://bids.neuroimaging.io/) datasets.
+  - [boutiques-dcm2niix](https://github.com/lalet/boutiques-dcm2niix) is a dockerfile for installing and validating dcm2niix.
+  - [DAC2BIDS](https://github.com/dangom/dac2bids) uses dcm2niibatch to create [BIDS](http://bids.neuroimaging.io/) datasets.
+  - [Dcm2Bids](https://github.com/cbedetti/Dcm2Bids) uses dcm2niix to create [BIDS](http://bids.neuroimaging.io/) datasets.
+  - [dcm2niir](https://github.com/muschellij2/dcm2niir) R wrapper for dcm2niix/dcm2nii.
+  - [dcm2niix_afni](https://afni.nimh.nih.gov/pub/dist/doc/program_help/dcm2niix_afni.html) is a version of dcm2niix included with the [AFNI](https://afni.nimh.nih.gov/) distribution.
+  - [dcm2niiXL](https://github.com/neurolabusc/dcm2niiXL) is a shell script and tuned compilation of dcm2niix designed for accelerated conversion of extra large datasets.
+  - [dicom2nifti_batch](https://github.com/scanUCLA/dicom2nifti_batch) is a Matlab script for automating dcm2niix.
+  - [divest](https://github.com/jonclayden/divest) R interface to dcm2niix.
+  - [fsleyes](https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/FSLeyes) is a powerful Python-based image viewer. It uses dcm2niix to handle DICOM files through its [fslpy libraries](https://users.fmrib.ox.ac.uk/~paulmc/fsleyes/fslpy/latest/fsl.data.dicom.html).
+  - [heudiconv](https://github.com/nipy/heudiconv) can use dcm2niix to create [BIDS](http://bids.neuroimaging.io/) datasets.
+  - [MRIcroGL](https://github.com/neurolabusc/MRIcroGL) is available for MacOS, Linux and Windows and provides a graphical interface for dcm2niix. You can get compiled copies from the [MRIcroGL NITRC web site](https://www.nitrc.org/projects/mricrogl/).
+  - [neuro_docker](https://github.com/Neurita/neuro_docker) includes dcm2niix as part of a single, static Dockerfile.
+  - [NeuroDebian](http://neuro.debian.net/pkgs/dcm2niix.html) provides up-to-date version of dcm2niix for Debian-based systems.
+  - [neurodocker](https://github.com/kaczmarj/neurodocker) generates [custom](https://github.com/rordenlab/dcm2niix/issues/138) Dockerfiles given specific versions of neuroimaging software.
+  - [nipype](https://github.com/nipy/nipype) can use dcm2niix to convert images.
+  - [pydcm2niix is a Python module for working with dcm2niix](https://github.com/jstutters/pydcm2niix).
+  - [sci-tran dcm2niix](https://github.com/scitran-apps/dcm2niix) Flywheel Gear (docker).

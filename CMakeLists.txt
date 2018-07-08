@@ -1,40 +1,9 @@
-project(dcm2niix)
-cmake_minimum_required(VERSION 2.6)
+cmake_minimum_required(VERSION 2.8.11)
 
-# Option1: Choose whether to build the batch version
-option(BATCH_VERSION "Build dcm2niibatch for multiple conversions as well" OFF)
-message(${BATCH_VERSION})
-
-# Option2: Build qt gui
-# TODO
-
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin")
-
-cmake_minimum_required(VERSION 2.6)
-#
-# Zlib
-#
-#find_package(ZLIB)
-
-# Resolve system dependency on yaml-cpp, which apparently does not
-# provide a CMake find_package() module.
-find_package(PkgConfig)
-if(PKG_CONFIG_FOUND)
-    pkg_check_modules(YAML_CPP yaml-cpp)
-    find_path(YAML_CPP_INCLUDE_DIR
-            NAMES yaml_cpp.h
-            PATHS ${YAML_CPP_INCLUDE_DIRS})
-    find_library(YAML_CPP_LIBRARY
-            NAMES YAML_CPP
-            PATHS ${YAML_CPP_LIBRARY_DIRS})
+if(COMMAND CMAKE_POLICY)
+    CMAKE_POLICY(SET CMP0003 NEW)
 endif()
 
-# Predefined permission set to enforce proper permissions
-# during install even if files in the sources have different
-# settings
-set(FILE_PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
+project(dcm2niix)
 
-##
-## Sub-projects
-##
-add_subdirectory(console)
+include(${CMAKE_SOURCE_DIR}/SuperBuild/SuperBuild.cmake)

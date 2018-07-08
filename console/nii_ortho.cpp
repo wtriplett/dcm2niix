@@ -1,11 +1,13 @@
+#ifndef HAVE_R
 #include "nifti1.h"
+#endif
 #include "nifti1_io_core.h"
 #include "nii_ortho.h"
 #include <math.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <sys/stat.h>
-#include <stdbool.h>
+#include <stdbool.h> //requires VS 2015 or later
 #include <ctype.h>
 #include <string.h>
 #include <stddef.h>
@@ -13,9 +15,13 @@
 //#include <unistd.h>
 #include <stdio.h>
 #ifndef _MSC_VER
+
 	#include <unistd.h>
+
 #endif
 //#define MY_DEBUG //verbose text reporting
+
+#include "print.h"
 
 typedef struct  {
     int v[3];
@@ -105,7 +111,7 @@ vec3i setOrientVec(mat33 m)
 // Assumes isOrthoMat NOT computed on INVERSE, hence return INVERSE of solution...
 //e.g. [-1,2,3] means reflect x axis, [2,1,3] means swap x and y dimensions
 {
-    vec3i ret = {0, 0, 0};
+    vec3i ret = {{0, 0, 0}};
     //mat33 m = {-1,0,0, 0,1,0, 0,0,1};
     for (int i = 0; i < 3; i++) {
         for (int j = 0; j < 3; j++) {
@@ -199,17 +205,17 @@ void  reOrientImg( unsigned char *  img, vec3i outDim, vec3i outInc, int bytePer
     for (int vol= 0; vol < nvol; vol++) {
         memcpy(&inbuf[0], &outbuf[vol*bytePerVol], bytePerVol); //copy source volume
         for (int z = 0; z < outDim.v[2]; z++)
-            for (int y = 0; y < outDim.v[1]; y++) 
+            for (int y = 0; y < outDim.v[1]; y++)
                 for (int x = 0; x < outDim.v[0]; x++) {
                     memcpy(&outbuf[o], &inbuf[xLUT[x]+yLUT[y]+zLUT[z]], bytePerVox);
                     o = o+ bytePerVox;
                 } //for each x
     } //for each volume
     //free arrays
-    free(inbuf); 
+    free(inbuf);
     free(xLUT);
-    free(yLUT); 
-    free(zLUT); 
+    free(yLUT);
+    free(zLUT);
 } //reOrientImg
 
 unsigned char *  reOrient(unsigned char* img, struct nifti_1_header *h, vec3i orientVec, mat33 orient, vec3 minMM)
@@ -217,9 +223,9 @@ unsigned char *  reOrient(unsigned char* img, struct nifti_1_header *h, vec3i or
 {
     size_t nvox = h->dim[1] * h->dim[2] * h->dim[3];
     if (nvox < 1) return img;
-    vec3i outDim= {0,0,0};
-    vec3i outInc= {0,0,0};
-    for (int i = 0; i < 3; i++) { //set dimension, pixdim and 
+    vec3i outDim= {{0,0,0}};
+    vec3i outInc= {{0,0,0}};
+    for (int i = 0; i < 3; i++) { //set dimension, pixdim and
         outDim.v[i] =  h->dim[abs(orientVec.v[i])];
         if (abs(orientVec.v[i]) == 1) outInc.v[i] = 1;
         if (abs(orientVec.v[i]) == 2) outInc.v[i] = h->dim[1];
@@ -233,7 +239,7 @@ unsigned char *  reOrient(unsigned char* img, struct nifti_1_header *h, vec3i or
     }
     reOrientImg(img, outDim, outInc, h->bitpix / 8,  nvol);
     //now change the header....
-    vec3 outPix= {h->pixdim[abs(orientVec.v[0])],h->pixdim[abs(orientVec.v[1])],h->pixdim[abs(orientVec.v[2])]};
+    vec3 outPix= {{h->pixdim[abs(orientVec.v[0])],h->pixdim[abs(orientVec.v[1])],h->pixdim[abs(orientVec.v[2])]}};
     for (int i = 0; i < 3; i++) {
         h->dim[i+1] = outDim.v[i];
         h->pixdim[i+1] = outPix.v[i];
@@ -311,7 +317,7 @@ vec3 minCornerFlip (struct nifti_1_header *h, vec3i* flipVec)
 
 #ifdef MY_DEBUG
 void reportMat44o(char *str, mat44 A) {
-    printf("%s = [%g %g %g %g; %g %g %g %g; %g %g %g %g; 0 0 0 1]\n",str,
+    printMessage("%s = [%g %g %g %g; %g %g %g %g; %g %g %g %g; 0 0 0 1]\n",str,
            A.m[0][0],A.m[0][1],A.m[0][2],A.m[0][3],
            A.m[1][0],A.m[1][1],A.m[1][2],A.m[1][3],
            A.m[2][0],A.m[2][1],A.m[2][2],A.m[2][3]);
@@ -329,14 +335,14 @@ unsigned char *  nii_setOrtho(unsigned char* img, struct nifti_1_header *h) {
     }
     if (h->sform_code == NIFTI_XFORM_UNKNOWN) {
          #ifdef MY_DEBUG
-         printf("No Q or S spatial transforms - assuming canonical orientation");
+         printMessage("No Q or S spatial transforms - assuming canonical orientation");
          #endif
          return img;
     }
     mat44 s = sFormMat(h);
     if (isMat44Canonical( s)) {
         #ifdef MY_DEBUG
-        printf("Image in perfect alignment: no need to reorient");
+        printMessage("Image in perfect alignment: no need to reorient");
         #endif
         return img;
     }
@@ -346,16 +352,16 @@ unsigned char *  nii_setOrtho(unsigned char* img, struct nifti_1_header *h) {
     vec3i orientVec = setOrientVec(orient);
     if ((orientVec.v[0]==1) && (orientVec.v[1]==2) && (orientVec.v[2]==3) ) {
         #ifdef MY_DEBUG
-        printf("Image already near best orthogonal alignment: no need to reorient\n");
+        printMessage("Image already near best orthogonal alignment: no need to reorient\n");
         #endif
         return img;
     }
     bool is24 = false;
     if (h->bitpix == 24 ) { //RGB stored as planar data. treat as 3 8-bit slices
         return img;
-        is24 = true;
+        /*is24 = true;
         h->bitpix = 8;
-        h->dim[3] = h->dim[3] * 3;
+        h->dim[3] = h->dim[3] * 3;*/
     }
     img = reOrient(img, h,orientVec, orient, minMM);
     if (is24 ) {
@@ -363,11 +369,11 @@ unsigned char *  nii_setOrtho(unsigned char* img, struct nifti_1_header *h) {
         h->dim[3] = h->dim[3] / 3;
     }
     #ifdef MY_DEBUG
-    printf("NewRotation= %d %d %d\n", orientVec.v[0],orientVec.v[1],orientVec.v[2]);
-    printf("MinCorner= %.2f %.2f %.2f\n", minMM.v[0],minMM.v[1],minMM.v[2]);
-    reportMat44o("input",s);
+    printMessage("NewRotation= %d %d %d\n", orientVec.v[0],orientVec.v[1],orientVec.v[2]);
+    printMessage("MinCorner= %.2f %.2f %.2f\n", minMM.v[0],minMM.v[1],minMM.v[2]);
+    reportMat44o((char*)"input",s);
     s = sFormMat(h);
-    reportMat44o("output",s);
+    reportMat44o((char*)"output",s);
     #endif
     return img;
 }
